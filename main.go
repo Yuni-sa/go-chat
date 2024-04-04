@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -137,30 +138,41 @@ func messageClient(client *websocket.Conn, msg ChatMessage) {
 	}
 }
 
-func main() {
-	port := "8000"
-	// port := os.Getenv("PORT")
+func connectDB() *redis.Client {
 
-	// redisURL := "redis://:localhost:6379"
-	// redisURL := "redis://:172.17.0.2:6379"
-	// _, err := redis.ParseURL(redisURL)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	redisAddr := "redis-service.socialhub.svc.cluster.local:6379"
+	if r := os.Getenv("REDIS_ADDR"); r != "" {
+		redisAddr = r
+	}
+
+	redisPass := ""
+	if r := os.Getenv("REDIS_PASS"); r != "" {
+		redisAddr = r
+	}
 
 	// defines redis connection
 	rdb = redis.NewClient(&redis.Options{
 		// Addr: "localhost:6379",
 		// Addr:     "redis:6379",
-		Addr:     "redis-service.socialhub.svc.cluster.local:6379",
-		Password: "",
+		Addr:     redisAddr,
+		Password: redisPass,
 		DB:       0,
 	})
 
 	// simple ping / connection check
 	pong, err := rdb.Ping().Result()
-	log.Println(pong, err)
+	if err != nil {
+		log.Fatalf("Could not connect to Redis: %v", err)
+	}
+	log.Printf("Redis connected: %s", pong)
+	return rdb
+}
 
+func main() {
+	port := "8000"
+	// port := os.Getenv("PORT")
+
+	rdb = connectDB()
 	// creates an echo server
 	// http.Handle("/", http.FileServer(http.Dir("./public")))
 
